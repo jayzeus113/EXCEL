@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+jspm_packages/
+web_modules/
+
+# Production Build Outputs
+dist/
+build/
+out/
+lib/
+
+# TypeScript Specific
+*.tsbuildinfo
+*.js.map
+
+# Optional: Ignore compiled JS files ONLY if they are generated next to your TS files.
+# Do not use this rule if your project intentionally contains native JavaScript source files.
+# *.js
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Diagnostic/Testing Outputs
+coverage/
+.nyc_output/
+
+# IDEs and Text Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
