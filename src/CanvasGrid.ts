@@ -1,4 +1,3 @@
-import { GridConfig } from './config/GridConfig.js';
 import type { CellData } from './models/CellData.js';
 import type { CellState } from './models/CellState.js';
 import type { SelectionRange } from './models/SelectionRange.js';
@@ -17,7 +16,7 @@ export class CanvasGrid implements GridModel {
     headerWidth: number;
     headerHeight: number;
 
-    // Connect references back to managers to prevent duplicate states
+    
     private cellManager: CellManager;
     private selectionManager: SelectionManager;
 
@@ -52,7 +51,7 @@ export class CanvasGrid implements GridModel {
         this.headerHeight = config.headerHeight ?? 25;
     }
 
-    // Expose SelectionManager ranges to satisfy your GridModel layout rules
+    
     public get selections(): SelectionRange[] {
         return this.selectionManager.getSelections() as SelectionRange[];
     }
@@ -69,8 +68,7 @@ export class CanvasGrid implements GridModel {
     getCellState(c: number, r: number): CellState {
         return {
             selected: this.selectionManager.isSelected(c, r),
-            hovered: false,
-            editing: false
+            active: this.selectionManager.isActive(c, r)
         } as unknown as CellState;
     }
 
@@ -104,7 +102,6 @@ export class CanvasGrid implements GridModel {
         return label;
     }
 
-    // Map properties from .col / .row over to standard .x / .y points
     getRangeWidth(range: SelectionRange): number {
         let width = 0;
         const start = Math.min(range.start.col, range.end.col);

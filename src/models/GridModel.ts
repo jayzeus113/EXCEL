@@ -31,8 +31,9 @@ export interface GridModel{
     getCellY(r:number):number;
  
     getColumnLabel(c:number):string;
- 
+    
     getRangeWidth(range:SelectionRange):number;
  
     getRangeHeight(range:SelectionRange):number;
+
 }

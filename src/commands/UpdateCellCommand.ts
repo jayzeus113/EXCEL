@@ -1,23 +1,25 @@
+import { CellManager } from "../managers/CellManager.js";
 import type { CellData } from "../models/CellData.ts";
 import type Command from "./Command.ts";
  
-class UpdateCellCommand implements Command {
+export class UpdateCellCommand implements Command {
   constructor(
-    private cellData: Map<string, CellData>,
-    private cellKey: string,
-    private newValue: CellData,
-    private oldValue: undefined|CellData = cellData.get(cellKey)
+    private cellManager: CellManager,
+    private row: number,
+    private col: number,
+    private newCellData: CellData,
+    private oldCellData: undefined|CellData
   ) {}
  
   execute(): void {
-    this.cellData.set(this.cellKey, this.newValue);
+    this.cellManager.setCell(this.row, this.col, this.newCellData);
   }
  
   undo(): void {
-    if(this.oldValue === undefined) {
-      this.cellData.delete(this.cellKey);
+    if(this.oldCellData === undefined) {
+      this.cellManager.clearCell(this.row, this.col);
     } else {
-      this.cellData.set(this.cellKey, this.oldValue);
+      this.cellManager.setCell(this.row, this.col, this.oldCellData);
     }
   }
 }

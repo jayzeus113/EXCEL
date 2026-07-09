@@ -1,3 +1,4 @@
+import { GridConfig } from "../config/GridConfig.js";
 import type { CellData } from "../models/CellData.ts";
 import type { CellState } from "../models/CellState.ts";
 
@@ -30,13 +31,11 @@ export class CellRenderer {
         height: number,
         state: CellState
     ): void {
-
-        if (state.selected) {
-            this.ctx.fillStyle = "#e8f5e9";
+        if (state.selected  && !state.active) {
+            this.ctx.fillStyle = GridConfig.SELECT_BACKGROUND_COLOR;
         } else {
-            this.ctx.fillStyle = "#ffffff";
+            this.ctx.fillStyle = GridConfig.CELL_BACKGROUND_COLOR;
         }
-
         this.ctx.fillRect(x, y, width, height);
     }
 
@@ -47,7 +46,7 @@ export class CellRenderer {
         height: number
     ): void {
 
-        this.ctx.strokeStyle = "#e0e0e0";
+        this.ctx.strokeStyle = GridConfig.CELL_STROKE_STYLE;
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(x, y, width, height);
     }
@@ -70,7 +69,7 @@ export class CellRenderer {
         this.ctx.rect(x + 4, y, width - 8, height);
         this.ctx.clip();
 
-        this.ctx.fillStyle = "#000";
+        this.ctx.fillStyle = GridConfig.CELL_TEXT_COLOR;
         this.ctx.font = "12px Arial";
         this.ctx.textBaseline = "middle";
         this.ctx.textAlign = "left";
@@ -86,10 +85,8 @@ export class CellRenderer {
         width: number,
         height: number
     ): void {
-        console.log("JI00");
         this.ctx.save();
 
-        this.ctx.strokeStyle = "#7c1010";
         this.ctx.lineWidth = 2;
         
         

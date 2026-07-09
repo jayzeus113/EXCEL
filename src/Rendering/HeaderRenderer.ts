@@ -1,3 +1,4 @@
+import { GridConfig } from "../config/GridConfig.js";
 import type { GridModel } from "../models/GridModel.ts";
 
 export class HeaderRenderer {
@@ -13,11 +14,9 @@ export class HeaderRenderer {
         startRow: number,
         endRow: number
     ): void {
-        // Uniform text configuration to prevent cross-contamination
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
 
-        // Draw components sequentially in isolated context transformations using virtual bounds
         this.drawColumnHeaders(grid, scrollX, startCol, endCol);
         this.drawRowHeaders(grid, scrollY, startRow, endRow);
         this.drawCorner(grid);
@@ -26,7 +25,6 @@ export class HeaderRenderer {
     private drawColumnHeaders(grid: GridModel, scrollX: number, startCol: number, endCol: number) {
         this.ctx.save();
  
-        // Clip horizontal viewport bounds (keeps text out of the corner box)
         this.ctx.beginPath();
         this.ctx.rect(
             grid.headerWidth, 
@@ -36,25 +34,28 @@ export class HeaderRenderer {
         );
         this.ctx.clip();
 
-        // Translate ONLY horizontally for column layout calculations
         this.ctx.translate(-scrollX, 0);
 
-        // Optimized loop: only checks visible elements
         for (let c = startCol; c < endCol; c++) {
             const x = grid.getCellX(c);
             const w = grid.colWidths[c]!;
+
+            const isColumnSelected = grid.selections.some(range => {
+                const minCol = Math.min(range.start.col, range.end.col);
+                const maxCol = Math.max(range.start.col, range.end.col);
+                return c >= minCol && c <= maxCol;
+            });
+
  
-            // Fill background blocks
-            this.ctx.fillStyle = "#f3f3f3";
+            this.ctx.fillStyle = isColumnSelected ? GridConfig.SELECT_HEADER_BACKGROUND_COLOR : GridConfig.HEADER_BG;
+
             this.ctx.fillRect(x, 0, w, grid.headerHeight);
  
-            // Draw clean vertical boundaries (Column Dividers)
-            this.ctx.strokeStyle = "#cccccc";
+            this.ctx.strokeStyle = GridConfig.HEADER_STROKE_STYLE;
             this.ctx.lineWidth = 1;
             this.ctx.strokeRect(x, 0, w, grid.headerHeight);
 
-            // Render labels
-            this.ctx.fillStyle = "#000000";
+            this.ctx.fillStyle = GridConfig.HEADER_TEXT;
             this.ctx.fillText(
                 grid.getColumnLabel(c),
                 x + w / 2,
@@ -68,7 +69,7 @@ export class HeaderRenderer {
     private drawRowHeaders(grid: GridModel, scrollY: number, startRow: number, endRow: number) {
         this.ctx.save();
  
-        // Clip vertical viewport bounds (keeps text out of the corner box)
+        
         this.ctx.beginPath();
         this.ctx.rect(
             0, 
@@ -78,25 +79,30 @@ export class HeaderRenderer {
         );
         this.ctx.clip();
 
-        // Translate ONLY vertically for row layout calculations
+        
         this.ctx.translate(0, -scrollY);
 
-        // Optimized loop: only checks visible elements
+        
         for (let r = startRow; r < endRow; r++) {
             const y = grid.getCellY(r);
             const h = grid.rowHeights[r]!;
 
-            // Fill background blocks
-            this.ctx.fillStyle = "#f3f3f3";
+            const isRowSelected = grid.selections.some(range => {
+                const minRow = Math.min(range.start.row, range.end.row);
+                const maxRow = Math.max(range.start.row, range.end.row);
+                return r >= minRow && r <= maxRow;
+            });
+
+ 
+            this.ctx.fillStyle = isRowSelected ? GridConfig.SELECT_HEADER_BACKGROUND_COLOR : GridConfig.HEADER_BG;
+            
             this.ctx.fillRect(0, y, grid.headerWidth, h);
  
-            // Draw clean horizontal boundaries (Row Dividers)
-            this.ctx.strokeStyle = "#cccccc";
+            this.ctx.strokeStyle = GridConfig.HEADER_STROKE_STYLE;
             this.ctx.lineWidth = 1;
             this.ctx.strokeRect(0, y, grid.headerWidth, h);
 
-            // Render numeric indexes
-            this.ctx.fillStyle = "#000000";
+            this.ctx.fillStyle = GridConfig.HEADER_TEXT;
             this.ctx.fillText(
                 (r + 1).toString(),
                 grid.headerWidth / 2,
@@ -108,11 +114,10 @@ export class HeaderRenderer {
     }
  
     private drawCorner(grid: GridModel) {
-        // Locks firmly at absolute point 0,0 without translations
-        this.ctx.fillStyle = "#e6e6e6";
+        this.ctx.fillStyle = GridConfig.CORNER_BACKGROUND_COLOR;
         this.ctx.fillRect(0, 0, grid.headerWidth, grid.headerHeight);
  
-        this.ctx.strokeStyle = "#b5b5b5";
+        this.ctx.strokeStyle = GridConfig.CORNER_STROKE_STYLE;
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(0, 0, grid.headerWidth, grid.headerHeight);
     }

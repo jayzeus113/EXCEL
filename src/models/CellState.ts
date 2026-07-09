@@ -1,5 +1,4 @@
 export interface CellState {
     active: boolean,
-    selected: boolean,
-    editing: boolean
+    selected: boolean
 }

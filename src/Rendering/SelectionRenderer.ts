@@ -1,40 +1,48 @@
-// import type { GridModel } from "../models/GridModel.ts";
-// import type { SelectionRange } from "../models/SelectionRange.ts";
+import { GridConfig } from "../config/GridConfig.js";
+import type { GridModel } from "../models/GridModel.ts";
+import type { SelectionRange } from "../models/SelectionRange.ts";
 
-// export class SelectionRenderer{
+export class SelectionRenderer{
  
-    // constructor(private ctx:CanvasRenderingContext2D){}
+    constructor(private ctx:CanvasRenderingContext2D){}
  
-    // public draw(grid:GridModel){
+    public draw(grid:GridModel){
  
-        // for(const selection of grid.selections){
+        for(const selection of grid.selections){
+            this.drawSelection(selection,grid);
+        }
+    }
  
-        //     this.drawSelection(selection,grid);
-        // }
-    // }
+    private drawSelection(
+        selection:SelectionRange,
+        grid:GridModel
+    ){
+        const startX=grid.getCellX(selection.start.col);
+        const startY=grid.getCellY(selection.start.row);
+
+        const endX=grid.getCellX(selection.end.col);
+        const endY=grid.getCellY(selection.end.row);
+
+        const x = Math.min(startX, endX);
+        const y = Math.min(startY, endY);
  
-    // private drawSelection(
-    //     selection:SelectionRange,
-    //     grid:GridModel
-    // ){
-    //      const x=grid.getCellX(selection.start.col);
-    //     const y=grid.getCellY(selection.start.row);
+        const w=grid.getRangeWidth(selection);
+        const h=grid.getRangeHeight(selection);
  
-    //     const w=grid.getRangeWidth(selection);
-    //     const h=grid.getRangeHeight(selection);
+        this.ctx.save();
  
-    //     this.ctx.save();
+        this.ctx.strokeStyle=GridConfig.SELECT_STROKE_COLOR;
+        this.ctx.lineWidth=2;
+        
+        this.ctx.strokeRect(
+            x+0.5,
+            y+0.5,
+            w-1,
+            h-1
+        );
+
+
  
-    //     this.ctx.strokeStyle="#107c41";
-    //     this.ctx.lineWidth=2;
- 
-    //     this.ctx.strokeRect(
-    //         x+0.5,
-    //         y+0.5,
-    //         w-1,
-    //         h-1
-    //     );
- 
-    //     this.ctx.restore();
-    // }
-// }
+        this.ctx.restore();
+    }
+}

@@ -1,25 +1,38 @@
 import type Command from "./Command.ts";
+import type { ResizeManager } from "../managers/ResizeManager.js";
 import type FenwickTree from "../DataStructures/FenwickTree.ts";
  
-class ResizeColumnCommand implements Command {
+export class ResizeColumnCommand implements Command {
   constructor(
-    private widthsArray: number[],
-    private fenwickTree: FenwickTree,
+    private resizeManager: ResizeManager,
     private columnIndex: number,
     private newWidth: number,
-    private oldWidth: number
+    private oldWidth: number,
+    private colWidths: number[],
+    private colOffsets: FenwickTree
   ) {}
  
-  execute() {
-    const delta = this.newWidth - this.oldWidth;
-    this.widthsArray[this.columnIndex] = this.newWidth;
-    this.fenwickTree.add(this.columnIndex, delta);
+  public execute(): void {
+    const deltaX = this.newWidth - this.oldWidth;
+    
+    this.resizeManager.resizeColumn(
+      this.columnIndex,
+      deltaX,
+      this.oldWidth,
+      this.colWidths,
+      this.colOffsets
+    );
   }
  
-  undo() {
-    const delta = this.oldWidth - this.newWidth;
-    this.widthsArray[this.columnIndex] = this.oldWidth;
-    this.fenwickTree.add(this.columnIndex, delta);
+  public undo(): void {
+    const deltaX = this.oldWidth - this.newWidth;
+    
+    this.resizeManager.resizeColumn(
+      this.columnIndex,
+      deltaX,
+      this.newWidth,
+      this.colWidths,
+      this.colOffsets
+    );
   }
 }
- 

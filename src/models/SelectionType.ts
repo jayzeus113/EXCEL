@@ -5,4 +5,3 @@ export enum SelectionType {
     Column,
     Sheet
 }
- 

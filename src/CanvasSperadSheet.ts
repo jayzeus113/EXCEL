@@ -1,32 +1,38 @@
 import FenwickTree from "./DataStructures/FenwickTree.js";
-import type { CellData } from "./models/CellData.js";
 import type { Point } from "./models/Point.js";
-import type { HistoryItem } from "./models/HistoryItem.js";
-import type { ResizeHit } from "./models/ResizeHit.js";
 import { CellManager } from "./managers/CellManager.js";
 import { SelectionManager } from "./managers/SelectionManager.js";
 import { ScrollManager } from "./managers/ScrollManager.js";
 import { GridRenderer } from "./Rendering/GridRenderer.js";
 import { CellRenderer } from "./Rendering/CellRenderer.js";
 import { HeaderRenderer } from "./Rendering/HeaderRenderer.js";
-// import { SelectionRenderer } from "./Rendering/SelectionRenderer.js";
 import { GridConfig } from "./config/GridConfig.js";
 import type { GridModel } from "./models/GridModel.js";
 import { CanvasGrid } from "./CanvasGrid.js";
+import { ResizeManager } from "./managers/ResizeManager.js";
+import { HistoryManager } from "./managers/HistoryManager.js";
+import { ResizeColumnCommand } from "./commands/ResizeColumnCommand.js";
+import { ResizeRowCommand } from "./commands/ResizeRowCommand.js";
+import { UpdateCellCommand } from "./commands/UpdateCellCommand.js";
+import { SelectionRenderer } from "./Rendering/SelectionRenderer.js";
+import { SelectionMetrics } from "./models/SelectionMetrics.js";
 
 export class Spreadsheet {
     private readonly grid: GridModel;
     private readonly canvas: HTMLCanvasElement;
+    private readonly statusBar: HTMLDivElement;
     private readonly ctx: CanvasRenderingContext2D;
 
     private readonly cellManager: CellManager;
     private readonly selectionManager: SelectionManager;
     private readonly scrollManager: ScrollManager;
+    private readonly resizeManager: ResizeManager;
+    private readonly historyManager: HistoryManager;
 
     private readonly cellRenderer: CellRenderer;
     private readonly headerRenderer: HeaderRenderer;
-    // private readonly selectionRenderer: SelectionRenderer;
     private readonly gridRenderer: GridRenderer;
+    private readonly selectionRenderer: SelectionRenderer;
 
     private readonly editor: HTMLInputElement;
 
@@ -36,29 +42,28 @@ export class Spreadsheet {
     private editingCell: Point | null = null;
     private isMouseDown = false;
 
-    // Row / Column resizing boundary track layouts
     private isResizing = false;
     private resizeType: 'col' | 'row' | null = null;
     private resizeIndex = -1;
     private resizeStartSize = 0;
     private resizeStartPos = 0;
-    private readonly resizeThreshold = 5;
 
-    constructor(canvas: HTMLCanvasElement, editor: HTMLInputElement) {
+    constructor(canvas: HTMLCanvasElement, editor: HTMLInputElement, statusBar: HTMLDivElement) {
         this.canvas = canvas;
+        this.statusBar = statusBar;
         this.ctx = canvas.getContext("2d")!;
 
         this.cellManager = new CellManager();
         this.selectionManager = new SelectionManager();
         this.scrollManager = new ScrollManager();
+        this.resizeManager = new ResizeManager();
+        this.historyManager = new HistoryManager();
 
-        // 1. Instantiate 100,000 rows x 500 cols capacity vectors
         this.colOffsets = new FenwickTree(GridConfig.MAX_COLS + 1);
         this.rowOffsets = new FenwickTree(GridConfig.MAX_ROWS + 1);
 
         const { colWidths, rowHeights } = this.initializeGeometry();
 
-        // 2. Wire single source grid wrapper context bounds
         this.grid = new CanvasGrid(this.ctx, this.cellManager, this.selectionManager, {
             startRow: 0,
             endRow: GridConfig.MAX_ROWS,
@@ -72,14 +77,66 @@ export class Spreadsheet {
 
         this.cellRenderer = new CellRenderer(this.ctx);
         this.headerRenderer = new HeaderRenderer(this.ctx);
-        // this.selectionRenderer = new SelectionRenderer(this.ctx);
-        this.gridRenderer = new GridRenderer(this.cellRenderer, this.headerRenderer);
+        this.selectionRenderer = new SelectionRenderer(this.ctx);
+        this.gridRenderer = new GridRenderer(this.cellRenderer, this.headerRenderer, this.selectionRenderer);
 
         this.editor = editor;
 
         this.setupEvents();
         this.resizeCanvas();
         this.draw();
+    }
+
+    public computeSelectionMetrics(): SelectionMetrics | null {
+        const selections = this.selectionManager.getSelections();
+        if (!selections || selections.length === 0) return null;
+
+        let count = 0;
+        let sum = 0;
+        let min = Infinity;
+        let max = -Infinity;
+
+        const processedCells = new Set<string>();
+
+        for (const range of selections) {
+            const minCol = Math.min(range.start.col, range.end.col);
+            const maxCol = Math.max(range.start.col, range.end.col);
+            const minRow = Math.min(range.start.row, range.end.row);
+            const maxRow = Math.max(range.start.row, range.end.row);
+
+            for (let r = minRow; r <= maxRow; r++) {
+                for (let c = minCol; c <= maxCol; c++) {
+                    const cellKey = `${r},${c}`;
+
+                    if (processedCells.has(cellKey)) continue;
+                    processedCells.add(cellKey);
+
+                    const cellData = this.cellManager.getCell(c, r);
+                    if (!cellData || !cellData.value) continue;
+
+                    const trimmedValue = cellData.value.trim();
+                    if (trimmedValue === "") continue;
+
+                    const numericValue = Number(trimmedValue);
+
+                    if (!isNaN(numericValue)) {
+                        count++;
+                        sum += numericValue;
+                        if (numericValue < min) min = numericValue;
+                        if (numericValue > max) max = numericValue;
+                    }
+                }
+            }
+        }
+        if (count === 0) return null;
+
+        return {
+            count: count,
+            min: min,
+            max: max,
+            sum: sum,
+            average: sum / count
+        };
     }
 
     private initializeGeometry(): { colWidths: number[], rowHeights: number[] } {
@@ -130,23 +187,50 @@ export class Spreadsheet {
         this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
         window.addEventListener('mouseup', (e) => this.onMouseUp(e));
         this.canvas.addEventListener('dblclick', (e) => this.onDoubleClick(e));
-        this.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
+
+
+        this.canvas.addEventListener('wheel', (e: WheelEvent) => {
+            e.preventDefault();
+            let deltaX = e.deltaX;
+            let deltaY = e.deltaY;
+
+            if (e.shiftKey) {
+                console.log(deltaY);
+                deltaX += deltaY;
+                deltaY = 0;
+            }
+            const nextX = this.scrollManager.scrollX + deltaX
+            const nextY = this.scrollManager.scrollY + deltaY;
+
+            this.scrollManager.setScroll(nextX, nextY, this.grid);
+            this.draw();
+        }, { passive: false });
 
         this.editor.addEventListener('keydown', (e) => this.onEditorKeyDown(e));
         this.editor.addEventListener('blur', () => this.commitEdit());
-        this.canvas.addEventListener('wheel', (e: WheelEvent) => {
-    e.preventDefault(); // Stop standard page body movement
 
-    // Compute proposed new layout coordinates
-    const nextX = this.scrollManager.scrollX + e.deltaX;
-    const nextY = this.scrollManager.scrollY + e.deltaY;
 
-    // Apply clamped updates
-    this.scrollManager.setScroll(nextX, nextY, this.grid);
+        document.addEventListener('keydown', (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (
+                target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.isContentEditable
+            ) {
+                return;
+            }
 
-    // Request animation frame layout redraw
-    this.gridRenderer.render(this.grid, this.scrollManager, this.colOffsets, this.rowOffsets);
-}, { passive: false });
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                e.preventDefault();
+                this.historyManager.undo();
+                this.draw();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+                e.preventDefault();
+                this.historyManager.redo();
+                this.draw();
+            }
+        });
     }
 
     private screenToGridCoords(screenX: number, screenY: number): Point | null {
@@ -161,32 +245,12 @@ export class Spreadsheet {
         const col = this.colOffsets.lowerBound(x);
         const row = this.rowOffsets.lowerBound(y);
 
+
         if (col >= GridConfig.MAX_COLS || row >= GridConfig.MAX_ROWS || col < 0 || row < 0) {
             return null;
         }
 
         return { col: col, row: row };
-    }
-
-    private checkResizeHit(x: number, y: number): ResizeHit | null {
-        if (y < this.grid.headerHeight && x >= this.grid.headerWidth) {
-            const virtualX = x - this.grid.headerWidth + this.scrollManager.scrollX;
-            const col = this.colOffsets.lowerBound(virtualX);
-            const edgeX = this.grid.getCellX(col + 1) - this.scrollManager.scrollX;
-            if (Math.abs(x - edgeX) <= this.resizeThreshold) {
-                return { type: 'col', index: col };
-            }
-        }
-        
-        if (x < this.grid.headerWidth && y >= this.grid.headerHeight) {
-            const virtualY = y - this.grid.headerHeight + this.scrollManager.scrollY;
-            const row = this.rowOffsets.lowerBound(virtualY);
-            const edgeY = this.grid.getCellY(row + 1) - this.scrollManager.scrollY;
-            if (Math.abs(y - edgeY) <= this.resizeThreshold) {
-                return { type: 'row', index: row };
-            }
-        }
-        return null;
     }
 
     private onMouseDown(e: MouseEvent): void {
@@ -195,28 +259,32 @@ export class Spreadsheet {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // Process potential cell resize interaction triggers
-        const hit = this.checkResizeHit(x, y);
+        const hit = this.resizeManager.getResizeHit(
+            x,
+            y,
+            this.scrollManager.scrollX,
+            this.scrollManager.scrollY,
+            this.colOffsets,
+            this.rowOffsets
+        );
+
         if (hit) {
             this.isResizing = true;
             this.resizeType = hit.type;
             this.resizeIndex = hit.index;
             this.resizeStartPos = hit.type === 'col' ? e.clientX : e.clientY;
             this.resizeStartSize = hit.type === 'col'
-                ? this.grid.colWidths[hit.index]
-                : this.grid.rowHeights[hit.index];
-            this.commitEdit();
+                ? this.grid.colWidths[hit.index]!
+                : this.grid.rowHeights[hit.index]!;
             return;
         }
 
         this.isMouseDown = true;
-        this.commitEdit();
-
-        const cellPos = this.screenToGridCoords(e.clientX, e.clientY);
-        if (!cellPos) return;
-
-        this.selectionManager.startSelection(cellPos.col, cellPos.row);
-        this.draw();
+        const coords = this.screenToGridCoords(e.clientX, e.clientY);
+        if (coords) {
+            this.selectionManager.startSelection(coords.col, coords.row);
+            this.draw();
+        }
     }
 
     private onMouseMove(e: MouseEvent): void {
@@ -224,134 +292,164 @@ export class Spreadsheet {
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // 1. Handle live column or row resize dragging operations
-        if (this.isResizing && this.resizeType) {
-            if (this.resizeType === 'col') {
-                const delta = e.clientX - this.resizeStartPos;
-                const newWidth = Math.max(30, this.resizeStartSize + delta);
-                const currentWidth = this.grid.colWidths[this.resizeIndex];
-                this.grid.colWidths[this.resizeIndex] = newWidth;
-                this.colOffsets.add(this.resizeIndex + 1, newWidth - currentWidth);
-            } else {
-                const delta = e.clientY - this.resizeStartPos;
-                const newHeight = Math.max(18, this.resizeStartSize + delta);
-                const currentHeight = this.grid.rowHeights[this.resizeIndex];
-                this.grid.rowHeights[this.resizeIndex] = newHeight;
-                this.rowOffsets.add(this.resizeIndex + 1, newHeight - currentHeight);
-            }
 
-            // Re-sync scroll clamp boundaries dynamically during resize interactions
-            this.scrollManager.updateMetrics(
-                window.innerWidth, window.innerHeight,
-                this.colOffsets, this.rowOffsets,
-                GridConfig.MAX_COLS, GridConfig.MAX_ROWS,
-                this.grid.headerWidth, this.grid.headerHeight
-            );
+        if (this.isResizing) {
+            if (this.resizeType === 'col') {
+                const deltaX = e.clientX - this.resizeStartPos;
+                this.resizeManager.resizeColumn(
+                    this.resizeIndex,
+                    deltaX,
+                    this.resizeStartSize,
+                    this.grid.colWidths,
+                    this.colOffsets
+                );
+            } else if (this.resizeType === 'row') {
+                const deltaY = e.clientY - this.resizeStartPos;
+                this.resizeManager.resizeRow(
+                    this.resizeIndex,
+                    deltaY,
+                    this.resizeStartSize,
+                    this.grid.rowHeights,
+                    this.rowOffsets
+                );
+            }
             this.draw();
             return;
         }
 
-        // 2. Manage canvas cursor hover icon changes over boundary lines
-        const hit = this.checkResizeHit(x, y);
+
+        const hit = this.resizeManager.getResizeHit(
+            x,
+            y,
+            this.scrollManager.scrollX,
+            this.scrollManager.scrollY,
+            this.colOffsets,
+            this.rowOffsets
+        );
         if (hit) {
             this.canvas.style.cursor = hit.type === 'col' ? 'col-resize' : 'row-resize';
         } else {
             this.canvas.style.cursor = 'default';
         }
 
-        // 3. Process active select drag bounding box expansion loops
-        if (!this.isMouseDown) return;
-        const cellPos = this.screenToGridCoords(e.clientX, e.clientY);
-        if (!cellPos) return;
 
-        this.selectionManager.updateSelection(cellPos.col, cellPos.row);
-        this.draw();
+        if (this.isMouseDown) {
+            const coords = this.screenToGridCoords(e.clientX, e.clientY);
+            if (coords) {
+                this.selectionManager.updateSelection(coords.col, coords.row);
+                this.draw();
+            }
+        }
     }
 
     private onMouseUp(e: MouseEvent): void {
+        if (this.isResizing) {
+            if (this.resizeType === 'col') {
+                const finalWidth = this.grid.colWidths[this.resizeIndex]!;
+                if (finalWidth !== this.resizeStartSize) {
+                    const command = new ResizeColumnCommand(
+                        this.resizeManager,
+                        this.resizeIndex,
+                        finalWidth,
+                        this.resizeStartSize,
+                        this.grid.colWidths,
+                        this.colOffsets
+                    );
+                    this.historyManager.executeCommand(command);
+                }
+            }
+            else if (this.resizeType === 'row') {
+                const finalHeight = this.grid.rowHeights[this.resizeIndex]!;
+                if (finalHeight !== this.resizeStartSize) {
+                    const command = new ResizeRowCommand(
+                        this.resizeManager,
+                        this.resizeIndex,
+                        finalHeight,
+                        this.resizeStartSize,
+                        this.grid.rowHeights,
+                        this.rowOffsets
+                    );
+                    this.historyManager.executeCommand(command);
+                }
+            }
+        }
+
         this.isMouseDown = false;
         this.isResizing = false;
         this.resizeType = null;
+        this.resizeIndex = -1;
     }
 
     private onDoubleClick(e: MouseEvent): void {
-        const cellPos = this.screenToGridCoords(e.clientX, e.clientY);
-        if (!cellPos) return;
+        const coords = this.screenToGridCoords(e.clientX, e.clientY);
+        if (!coords) return;
 
-        this.editingCell = cellPos;
-        this.beginEdit();
+        this.editingCell = coords;
+        const cellData = this.cellManager.getCell(coords.col, coords.row);
+
+        const x = this.grid.getCellX(coords.col) - this.scrollManager.scrollX;
+        //  this.grid.headerWidth;
+        const y = this.grid.getCellY(coords.row) - this.scrollManager.scrollY;
+        // this.grid.headerHeight;
+
+        this.editor.value = cellData ? cellData.value : "";
+        this.editor.style.left = `${x}px`;
+        this.editor.style.top = `${y}px`;
+        this.editor.style.width = `${this.grid.colWidths[coords.col]}px`;
+        this.editor.style.height = `${this.grid.rowHeights[coords.row]}px`;
+        this.editor.style.display = "block";
+        this.editor.focus();
     }
-
-    private onWheel(e: WheelEvent): void {
-        e.preventDefault();
-        this.scrollManager.scroll(e.deltaX, e.deltaY);
-        this.draw();
-
-        if (this.editingCell) {
-            this.beginEdit(); // Keeps overlay perfectly pinned if scrolling while editing
-        }
-    }
-
 
     private onEditorKeyDown(e: KeyboardEvent): void {
-        if (e.key === 'Enter') {
+        if (e.key === "Enter") {
             this.commitEdit();
-            this.canvas.focus();
-        } else if (e.key === 'Escape') {
-            this.cancelEdit();
-            this.canvas.focus();
+
+        } else if (e.key === "Escape") {
+            this.editor.style.display = "none";
+            this.editingCell = null;
         }
-    }
-
-    private beginEdit(): void {
-        if (!this.editingCell) return;
-
-        const cellData = this.cellManager.getCell(this.editingCell.col, this.editingCell.row);
-        const x = this.grid.getCellX(this.editingCell.col) - this.scrollManager.scrollX;
-        const y = this.grid.getCellY(this.editingCell.row) - this.scrollManager.scrollY;
-        const w = this.grid.colWidths[this.editingCell.col];
-        const h = this.grid.rowHeights[this.editingCell.row];
-
-        this.editor.value = cellData?.value || "";
-        this.editor.style.left = `${this.canvas.offsetLeft + x}px`;
-        this.editor.style.top = `${this.canvas.offsetTop + y}px`;
-        this.editor.style.width = `${w}px`;
-        this.editor.style.height = `${h}px`;
-        this.editor.style.display = "block";
-
-        setTimeout(() => this.editor.focus(), 0);
     }
 
     private commitEdit(): void {
         if (!this.editingCell) return;
 
-        this.cellManager.setCell(this.editingCell.col, this.editingCell.row, {
-            value: this.editor.value
-        });
+        const { col, row } = this.editingCell;
+        const value = this.editor.value;
+        const oldCellData = this.cellManager.getCell(col, row);
+
+        if (!oldCellData || oldCellData.value !== value) {
+            const command = new UpdateCellCommand(
+                this.cellManager,
+                col,
+                row,
+                { value },
+                oldCellData
+            );
+            this.historyManager.executeCommand(command);
+        }
 
         this.editor.style.display = "none";
         this.editingCell = null;
         this.draw();
     }
 
-    private cancelEdit(): void {
-        this.editor.style.display = "none";
-        this.editingCell = null;
-        this.draw();
-    }
-
-    private draw(): void {
+    public draw(): void {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.save();
+        this.gridRenderer.render(this.grid, this.scrollManager, this.colOffsets, this.rowOffsets);
+        const metrics = this.computeSelectionMetrics();
 
-        // Triggers optimized sub-region grid virtualization routine
-        this.gridRenderer.render(
-            this.grid,
-            this.scrollManager,
-            this.colOffsets,
-            this.rowOffsets
-        );
+        if (metrics) {
+            document.getElementById("metricAverage")!.innerText = `Average: ${metrics.average.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+            document.getElementById("metricCount")!.innerText = `Count: ${metrics.count}`;
+            document.getElementById("metricMin")!.innerText = `Min: ${metrics.min}`;
+            document.getElementById("metricMax")!.innerText = `Max: ${metrics.max}`;
+            document.getElementById("metricSum")!.innerText = `Sum: ${metrics.sum.toLocaleString()}`;
+            this.statusBar.style.display = "flex";
+        } else {
+            this.statusBar.style.display = "none";
+        }
 
-        this.ctx.restore();
     }
 }
+
