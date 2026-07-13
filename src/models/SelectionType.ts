@@ -1,7 +1,6 @@
 export enum SelectionType {
-    Cell,
-    Range,
-    Row,
-    Column,
-    Sheet
+    Cell = 'cell',
+    Column = 'col',
+    Row = 'row',
+    All = 'all'
 }

@@ -50,19 +50,50 @@ export class ScrollManager {
 
   public getVisibleCols(colOffsets: FenwickTree): { startCol: number; endCol: number } {
     const startCol = colOffsets.lowerBound(this._scrollX);
-    
+
     const endCol = colOffsets.lowerBound(this._scrollX + this.viewportWidth);
 
     return { startCol, endCol };
   }
   public setScroll(targetX: number, targetY: number, grid: GridModel): void {
-    const totalGridWidth = grid.colWidths.reduce((sum:number, w:number) => sum + w, 0);
-    const totalGridHeight = grid.rowHeights.reduce((sum:number, h:number) => sum + h, 0);
-
-    const maxScrollX = Math.max(0, totalGridWidth - (grid.ctx.canvas.width - grid.headerWidth));
-    const maxScrollY = Math.max(0, totalGridHeight - (grid.ctx.canvas.height - grid.headerHeight));
+    const maxScrollX = this.maxScrollWidth;
+    const maxScrollY = this.maxScrollHeight;
 
     this._scrollX = Math.max(0, Math.min(targetX, maxScrollX));
     this._scrollY = Math.max(0, Math.min(targetY, maxScrollY));
+  }
+
+  public scrollToCell(
+    row: number,
+    col: number,
+    colOffsets: FenwickTree,
+    rowOffsets: FenwickTree,
+    grid: GridModel
+  ): void {
+    const cellLeft = colOffsets.prefixSum(col) as number;
+    const cellTop = rowOffsets.prefixSum(row) as number;
+
+    const cellWidth = grid.colWidths[col] ?? 0;
+    const cellHeight = grid.rowHeights[row] ?? 0;
+
+    const cellRight = cellLeft + cellWidth;
+    const cellBottom = cellTop + cellHeight;
+
+    let targetX = this._scrollX;
+    let targetY = this._scrollY;
+
+    if (cellLeft < this._scrollX) {
+      targetX = cellLeft;
+    } else if (cellRight > this._scrollX + this.viewportWidth) {
+      targetX = cellRight - this.viewportWidth;
+    }
+
+    if (cellTop < this._scrollY) {
+      targetY = cellTop;
+    } else if (cellBottom > this._scrollY + this.viewportHeight) {
+      targetY = cellBottom - this.viewportHeight;
+    }
+
+    this.setScroll(targetX, targetY, grid);
   }
 }

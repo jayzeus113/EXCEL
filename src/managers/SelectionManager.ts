@@ -1,6 +1,7 @@
 import type { SelectionRange } from "../models/SelectionRange.ts";
 import { SelectionType } from "../models/SelectionType.js";
 import type { Point } from "../models/Point.ts";
+import { GridConfig } from "../config/GridConfig.js"
 
 export class SelectionManager {
     private selections: SelectionRange[] = [];
@@ -41,7 +42,7 @@ export class SelectionManager {
             type: type,
             activeCell: anchor
         };
-
+        
         this.selections = [this.activeRange];
     }
 
@@ -66,4 +67,34 @@ export class SelectionManager {
         if (!this.activeRange) return false;
         return this.activeRange.start.col == col && this.activeRange.start.row == row;
     }
+
+    public getActiveCell(): null | Point {
+        if(this.selections.length) return this.selections[0].activeCell;
+        return null;
+    }
+
+    public selectEntireColumn(colIndex: number): void {
+        const range: SelectionRange = {
+            start: { col: colIndex, row: 0 },
+            end: { col: colIndex, row: GridConfig.MAX_ROWS - 1 },
+            type: SelectionType.Column,
+            activeCell: { col: colIndex, row: 0 }
+        };
+
+        
+        this.selections = [range];
+        this.activeRange = range;
+    }
+    public selectEntireRow(rowIndex: number): void {
+        const range: SelectionRange = {
+            start: { col: 0, row: rowIndex },
+            end: { col: GridConfig.MAX_COLS - 1, row: rowIndex },
+            type: SelectionType.Row,
+            activeCell: { col: 0, row: rowIndex }
+        };
+
+        this.selections = [range];
+        this.activeRange = range;
+    }
+
 }
