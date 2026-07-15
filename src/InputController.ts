@@ -166,6 +166,7 @@ export class InputController {
     }
 
     private handleWheel(e: WheelEvent, canvas: HTMLCanvasElement) {
+        this.app.commitEdit();
         e.preventDefault();
         let deltaX = e.deltaX;
         let deltaY = e.deltaY;

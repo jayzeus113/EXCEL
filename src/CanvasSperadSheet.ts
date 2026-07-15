@@ -17,6 +17,9 @@ import { UpdateCellCommand } from "./commands/UpdateCellCommand.js";
 import { SelectionRenderer } from "./Rendering/SelectionRenderer.js";
 import { SelectionMetricsManager } from "./managers/SelectionMetricsManager.js";
 import { InputController } from "./InputController.js";
+import { FormulaManager } from "./managers/FormulaManager.js";
+import { DataLoader } from "./services/DataLoader.js";
+import { JSONDataLoader } from "./services/JSONDataLoader.js";
 
 export class Spreadsheet {
     public readonly grid: GridModel;
@@ -30,12 +33,16 @@ export class Spreadsheet {
     public readonly scrollManager: ScrollManager;
     public readonly resizeManager: ResizeManager;
     public readonly historyManager: HistoryManager;
+    private readonly formulaManager: FormulaManager;
 
     private readonly cellRenderer: CellRenderer;
     private readonly headerRenderer: HeaderRenderer;
     private readonly gridRenderer: GridRenderer;
     private readonly selectionRenderer: SelectionRenderer;
+    
     private readonly InputController: InputController;
+
+    private readonly dataLoader: DataLoader;
 
     private readonly editor: HTMLInputElement;
 
@@ -55,10 +62,13 @@ export class Spreadsheet {
         this.scrollManager = new ScrollManager();
         this.resizeManager = new ResizeManager();
         this.historyManager = new HistoryManager();
+        this.formulaManager = new FormulaManager(this.cellManager);
         this.selectionMetricsManager = new SelectionMetricsManager(this.selectionManager, this.cellManager);
 
         this.colOffsets = new FenwickTree(GridConfig.MAX_COLS + 1);
         this.rowOffsets = new FenwickTree(GridConfig.MAX_ROWS + 1);
+
+        this.dataLoader = new JSONDataLoader(this.formulaManager);
 
         const { colWidths, rowHeights } = this.initializeGeometry();
 
@@ -73,7 +83,7 @@ export class Spreadsheet {
             headerHeight: GridConfig.HEADER_HEIGHT || 25
         });
 
-        this.cellRenderer = new CellRenderer(this.ctx);
+        this.cellRenderer = new CellRenderer(this.ctx, this.formulaManager);
         this.headerRenderer = new HeaderRenderer(this.ctx);
         this.selectionRenderer = new SelectionRenderer(this.ctx);
         this.gridRenderer = new GridRenderer(this.cellRenderer, this.headerRenderer, this.selectionRenderer);
@@ -85,7 +95,12 @@ export class Spreadsheet {
         this.draw();
     }
 
-
+    public async loadInitialData(): Promise<void> {
+        await this.dataLoader.load(
+            this.cellManager,
+        );
+        this.draw();
+    }
 
     private initializeGeometry(): { colWidths: number[], rowHeights: number[] } {
         const colWidths: number[] = [];
@@ -214,9 +229,9 @@ export class Spreadsheet {
 
         if (metrics) {
             document.getElementById("metricAverage")!.innerText = `Average: ${metrics.average.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-            document.getElementById("metricCount")!.innerText = `Count: ${metrics.count}`;
-            document.getElementById("metricMin")!.innerText = `Min: ${metrics.min}`;
-            document.getElementById("metricMax")!.innerText = `Max: ${metrics.max}`;
+            document.getElementById("metricCount")!.innerText = `Count: ${metrics.count.toLocaleString()}`;
+            document.getElementById("metricMin")!.innerText = `Min: ${metrics.min.toLocaleString()}`;
+            document.getElementById("metricMax")!.innerText = `Max: ${metrics.max.toLocaleString()}`;
             document.getElementById("metricSum")!.innerText = `Sum: ${metrics.sum.toLocaleString()}`;
             this.statusBar.style.display = "flex";
         } else {

@@ -1,9 +1,13 @@
 import { GridConfig } from "../config/GridConfig.js";
+import { FormulaManager } from "../managers/FormulaManager.js";
 import type { CellData } from "../models/CellData.ts";
 import type { CellState } from "../models/CellState.ts";
 
 export class CellRenderer {
-    constructor(private readonly ctx: CanvasRenderingContext2D) { }
+    private readonly formulaManager: FormulaManager;
+    constructor(private readonly ctx: CanvasRenderingContext2D, formulaManager:FormulaManager) {
+        this.formulaManager = formulaManager;
+    }
 
     public draw(
         x: number,
@@ -74,7 +78,9 @@ export class CellRenderer {
         this.ctx.textBaseline = "middle";
         this.ctx.textAlign = "left";
 
-        this.ctx.fillText(cell.value, x + 6, y + height / 2);
+
+
+        this.ctx.fillText(this.formulaManager.checkForFormula(cell.value), x + 6, y + height / 2);
 
         this.ctx.restore();
     }

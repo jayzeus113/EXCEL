@@ -56,10 +56,6 @@ export class CanvasGrid implements GridModel {
         return this.selectionManager.getSelections() as SelectionRange[];
     }
 
-    public set selections(val: SelectionRange[]) {
-        // Controlled by core event loop handlers through SelectionManager
-    }
-
     // Query active cell matrix allocations directly out of your manager instance
     getCell(c: number, r: number): CellData | undefined {
         return this.cellManager.getCell(c, r);
@@ -72,7 +68,7 @@ export class CanvasGrid implements GridModel {
         } as unknown as CellState;
     }
 
-    // Calculate pixel X coordinate relative to grid origin
+    
     getCellX(c: number): number {
         let x = this.headerWidth;
         const limit = Math.min(c, this.colWidths.length);
@@ -82,7 +78,7 @@ export class CanvasGrid implements GridModel {
         return x;
     }
 
-    // Calculate pixel Y coordinate relative to grid origin
+    
     getCellY(r: number): number {
         let y = this.headerHeight;
         const limit = Math.min(r, this.rowHeights.length);
