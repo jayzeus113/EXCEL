@@ -39,7 +39,7 @@ export class Spreadsheet {
     private readonly headerRenderer: HeaderRenderer;
     private readonly gridRenderer: GridRenderer;
     private readonly selectionRenderer: SelectionRenderer;
-    
+
     private readonly InputController: InputController;
 
     private readonly dataLoader: DataLoader;
@@ -197,6 +197,23 @@ export class Spreadsheet {
         this.editor.style.display = "none";
         this.editingCell = null;
         this.draw();
+    }
+
+    public handleDeleteCell(): void {
+
+        const activeCell = this.selectionManager.getActiveCell();
+        if(!activeCell) return;
+        
+        const col = activeCell.col, row = activeCell.row;
+        const oldCellData = this.cellManager.getCell(col, row);
+        const command = new UpdateCellCommand(
+            this.cellManager,
+            col,
+            row,
+            { value: ""},
+            oldCellData
+        );
+        this.historyManager.executeCommand(command);
     }
 
     public cancelEdit(): void {

@@ -219,7 +219,7 @@ export class InputController {
             this.app.startEditingAtCell(activeCell);
             e.preventDefault();
         } else if ((e.key === 'Backspace' || e.key === 'Delete') && activeCell) {
-            this.app.cellManager.clearCell(activeCell.col, activeCell.row);
+            this.app.handleDeleteCell();
             this.app.draw();
         }
 
