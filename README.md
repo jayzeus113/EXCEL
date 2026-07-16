@@ -137,7 +137,6 @@ src/
 ##  Known Limitations
 
 - Canvas grid content is not screen-reader accessible.
-- When using arrow keys for moving active cell, the focus does not moves to active cell automatically.
 - Formulas support basic arithmetic only no functions (`SUM`, `AVERAGE`, etc.) and no range references (`A1:A10`).
 - No copy/paste, no multi-sheet support, and no import/export beyond the initial bundled `data.json`.
  
@@ -150,7 +149,6 @@ src/
 
 - Introduce formula functions and range references.
 - Cache formula evaluation results and invalidate only affected cells on edit.
-- Focus on active cell when not in the screen.
 
 ---
 
