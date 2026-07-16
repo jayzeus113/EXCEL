@@ -2,7 +2,7 @@
 import { DataLoader } from "./DataLoader.js";
 import type { CellManager } from "../managers/CellManager.js";
 import type { FormulaManager } from "../managers/FormulaManager.js";
-import data from '../../dataset.json' with {type : 'json'};
+import data from '../dataset.json' with {type : 'json'};
 import { Employee } from "../models/Employee.js";
 
 export class JSONDataLoader extends DataLoader {
