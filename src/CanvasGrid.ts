@@ -3,7 +3,7 @@ import type { CellState } from './models/CellState.js';
 import type { SelectionRange } from './models/SelectionRange.js';
 import type { GridModel } from './models/GridModel.js';
 import type { CellManager } from './managers/CellManager.js';
-import type { SelectionManager } from './managers/SelectionManager.js';
+import type SelectionManager from './managers/SelectionManager/SelectionManager.js'
 
 export class CanvasGrid implements GridModel {
     ctx: CanvasRenderingContext2D;
@@ -56,7 +56,6 @@ export class CanvasGrid implements GridModel {
         return this.selectionManager.getSelections() as SelectionRange[];
     }
 
-    // Query active cell matrix allocations directly out of your manager instance
     getCell(c: number, r: number): CellData | undefined {
         return this.cellManager.getCell(c, r);
     }

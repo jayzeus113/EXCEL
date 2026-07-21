@@ -1,6 +1,6 @@
 import { SelectionMetrics } from "../models/SelectionMetrics";
 import { CellManager } from "./CellManager";
-import { SelectionManager } from "./SelectionManager";
+import SelectionManager from "./SelectionManager/SelectionManager"; 
 
 export class SelectionMetricsManager {
     private readonly selectionManager: SelectionManager;

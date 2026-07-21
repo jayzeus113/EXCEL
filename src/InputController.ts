@@ -1,7 +1,12 @@
+import { ActiveHandler } from "./ActiveHandler.js";
 import { Spreadsheet } from "./CanvasSperadSheet.js";
 import { GridConfig } from "./config/GridConfig.js";
+import ColumnSelectionManager from "./managers/SelectionManager/ColumnSelectionManager.js";
+import RowSelectionManager from "./managers/SelectionManager/RowSelectionManager.js";
+import SelectionManager from "./managers/SelectionManager/SelectionManager.js";
+// import SelectionManager from "./managers/SelectionManager/SelectionManager.js";
+import SubGridSelectionManager from "./managers/SelectionManager/SubGridSelectionManager.js";
 import { Point } from "./models/Point.js";
-import { SelectionRange } from "./models/SelectionRange";
 
 export class InputController {
     private isMouseDown = false;
@@ -10,8 +15,16 @@ export class InputController {
     private resizeIndex = -1;
     private resizeStartSize = 0;
     private resizeStartPos = 0;
+    private handlers;
+    private activeHandler:ActiveHandler = null;
 
-    constructor(private app: Spreadsheet) { }
+    constructor(private app: Spreadsheet, selectionManager:SelectionManager) {
+        this.handlers = [
+            new ColumnSelectionManager(selectionManager),
+            new RowSelectionManager(selectionManager),
+            new SubGridSelectionManager(selectionManager),
+        ];
+    }
 
     public init(canvas: HTMLCanvasElement, editor: HTMLInputElement) {
         window.addEventListener('resize', () => this.app.resizeCanvas());
@@ -42,59 +55,73 @@ export class InputController {
 
         const { x, y } = this.getCanvasCoords(e, canvas);
 
-        const hit = this.app.resizeManager.getResizeHit(
-            x, y,
-            this.app.scrollManager.scrollX, this.app.scrollManager.scrollY,
-            this.app.colOffsets,
-            this.app.rowOffsets
-        );
+        // const hit = this.app.resizeManager.getResizeHit(
+        //     x, y,
+        //     this.app.scrollManager.scrollX, this.app.scrollManager.scrollY,
+        //     this.app.colOffsets,
+        //     this.app.rowOffsets
+        // );
 
-        if (hit) {
-            this.isResizing = true;
-            this.resizeType = hit.type;
-            this.resizeIndex = hit.index;
-            this.resizeStartPos = hit.type === 'col' ? e.clientX : e.clientY;
-            this.resizeStartSize = hit.type === 'col'
-                ? this.app.grid.colWidths[hit.index]!
-                : this.app.grid.rowHeights[hit.index]!;
-            return;
-        }
+        // if (hit) {
+        //     this.isResizing = true;
+        //     this.resizeType = hit.type;
+        //     this.resizeIndex = hit.index;
+        //     this.resizeStartPos = hit.type === 'col' ? e.clientX : e.clientY;
+        //     this.resizeStartSize = hit.type === 'col'
+        //         ? this.app.grid.colWidths[hit.index]!
+        //         : this.app.grid.rowHeights[hit.index]!;
+        //     return;
+        // }
 
-        if (y < this.app.grid.headerHeight && x > this.app.grid.headerWidth) {
-            const virtualX = x - this.app.grid.headerWidth + this.app.scrollManager.scrollX;
-            const clickedCol = this.app.colOffsets.lowerBound(virtualX);
-
-            if (clickedCol >= 0 && clickedCol < GridConfig.MAX_COLS) {
-                this.app.selectionManager.selectEntireColumn(clickedCol);
-                this.isMouseDown = true;
-                this.app.draw();
-            }
-            return;
-        }
-
-        if (x < this.app.grid.headerWidth && y > this.app.grid.headerHeight) {
-            const virtualY = y - this.app.grid.headerHeight + this.app.scrollManager.scrollY;
-            const clickedRow = this.app.rowOffsets.lowerBound(virtualY);
-
-            if (clickedRow >= 0 && clickedRow < GridConfig.MAX_ROWS) {
-                this.app.selectionManager.selectEntireRow(clickedRow);
-                this.isMouseDown = true;
-                this.app.draw();
-            }
-            return;
-        }
-
-
-        if (x <= this.app.grid.headerWidth && y <= this.app.grid.headerHeight) {
-            return;
-        }
-
-        this.isMouseDown = true;
         const coords = this.app.screenToGridCoords(e.clientX, e.clientY);
-        if (coords) {
-            this.app.selectionManager.startSelection(coords.col, coords.row);
-            this.app.draw();
+
+        if(!coords) return;
+
+        for(const handler of this.handlers) {
+            if(handler.hitTest(x, y))  {
+                this.activeHandler = handler;
+                this.activeHandler.handle(coords.col, coords.row);
+                break;
+            }
         }
+        this.isMouseDown = true;
+        this.app.draw();
+
+        // if (y < this.app.grid.headerHeight && x > this.app.grid.headerWidth) {
+        //     const virtualX = x - this.app.grid.headerWidth + this.app.scrollManager.scrollX;
+        //     const clickedCol = this.app.colOffsets.lowerBound(virtualX);
+
+        //     if (clickedCol >= 0 && clickedCol < GridConfig.MAX_COLS) {
+        //         // this.app.selectionManager.selectEntireColumn(clickedCol);
+        //         this.isMouseDown = true;
+        //         this.app.draw();
+        //     }
+        //     return;
+        // }
+
+        // if (x < this.app.grid.headerWidth && y > this.app.grid.headerHeight) {
+        //     const virtualY = y - this.app.grid.headerHeight + this.app.scrollManager.scrollY;
+        //     const clickedRow = this.app.rowOffsets.lowerBound(virtualY);
+
+        //     if (clickedRow >= 0 && clickedRow < GridConfig.MAX_ROWS) {
+        //         // this.app.selectionManager.selectEntireRow(clickedRow);
+        //         this.isMouseDown = true;
+        //         this.app.draw();
+        //     }
+        //     return;
+        // }
+
+
+        // if (x <= this.app.grid.headerWidth && y <= this.app.grid.headerHeight) {
+        //     return;
+        // }
+
+        // this.isMouseDown = true;
+        // const coords = this.app.screenToGridCoords(e.clientX, e.clientY);
+        // if (coords) {
+        //     this.app.selectionManager.startSelection(coords.col, coords.row);
+        //     this.app.draw();
+        // }
     }
 
     private handleMouseMove(e: MouseEvent, canvas: HTMLCanvasElement) {
@@ -250,6 +277,5 @@ export class InputController {
             this.app.selectionManager.startSelection(activeCell.col, activeCell.row);
             this.app.draw();
         }
-
     }
 }

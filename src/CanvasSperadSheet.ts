@@ -1,7 +1,7 @@
 import FenwickTree from "./DataStructures/FenwickTree.js";
 import type { Point } from "./models/Point.js";
 import { CellManager } from "./managers/CellManager.js";
-import { SelectionManager } from "./managers/SelectionManager.js";
+import SelectionManager from './managers/SelectionManager/SelectionManager.js'
 import { ScrollManager } from "./managers/ScrollManager.js";
 import { GridRenderer } from "./Rendering/GridRenderer.js";
 import { CellRenderer } from "./Rendering/CellRenderer.js";
@@ -56,9 +56,9 @@ export class Spreadsheet {
         this.statusBar = statusBar;
         this.ctx = canvas.getContext("2d")!;
 
-        this.InputController = new InputController(this);
         this.cellManager = new CellManager();
         this.selectionManager = new SelectionManager();
+        this.InputController = new InputController(this, this.selectionManager);
         this.scrollManager = new ScrollManager();
         this.resizeManager = new ResizeManager();
         this.historyManager = new HistoryManager();
@@ -145,15 +145,14 @@ export class Spreadsheet {
         const x = screenX - rect.left - this.grid.headerWidth + this.scrollManager.scrollX;
         const y = screenY - rect.top - this.grid.headerHeight + this.scrollManager.scrollY;
 
-        if (screenX - rect.left < this.grid.headerWidth || screenY - rect.top < this.grid.headerHeight) {
-            return null;
-        }
+        let row = -1, col = -1;
 
-        const col = this.colOffsets.lowerBound(x);
-        const row = this.rowOffsets.lowerBound(y);
+        if (screenX - rect.left < this.grid.headerWidth) col = -1;
+        else col = this.colOffsets.lowerBound(x);
+        if(screenY - rect.top < this.grid.headerHeight) row = -1;
+        else row = this.rowOffsets.lowerBound(y);
 
-
-        if (col >= GridConfig.MAX_COLS || row >= GridConfig.MAX_ROWS || col < 0 || row < 0) {
+        if (col >= GridConfig.MAX_COLS || row >= GridConfig.MAX_ROWS) {
             return null;
         }
 

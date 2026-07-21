@@ -1,9 +1,9 @@
-import type { SelectionRange } from "../models/SelectionRange.ts";
-import { SelectionType } from "../models/SelectionType.js";
-import type { Point } from "../models/Point.ts";
-import { GridConfig } from "../config/GridConfig.js"
+import type { SelectionRange } from "../../models/SelectionRange.ts";
+import { SelectionType } from "../../models/SelectionType.js";
+import type { Point } from "../../mod../../models/Point.js";
+import { GridConfig } from "../../config/GridConfig.js";
 
-export class SelectionManager {
+export default class SelectionManager {
     private selections: SelectionRange[] = [];
 
     private activeRange: SelectionRange | null = null;
@@ -85,16 +85,16 @@ export class SelectionManager {
         this.selections = [range];
         this.activeRange = range;
     }
-    public selectEntireRow(rowIndex: number): void {
-        const range: SelectionRange = {
-            start: { col: 0, row: rowIndex },
-            end: { col: GridConfig.MAX_COLS - 1, row: rowIndex },
-            type: SelectionType.Row,
-            activeCell: { col: 0, row: rowIndex }
-        };
+    // public selectEntireRow(rowIndex: number): void {
+    //     const range: SelectionRange = {
+    //         start: { col: 0, row: rowIndex },
+    //         end: { col: GridConfig.MAX_COLS - 1, row: rowIndex },
+    //         type: SelectionType.Row,
+    //         activeCell: { col: 0, row: rowIndex }
+    //     };
 
-        this.selections = [range];
-        this.activeRange = range;
-    }
+    //     this.selections = [range];
+    //     this.activeRange = range;
+    // }
 
 }
