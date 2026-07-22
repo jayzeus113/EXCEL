@@ -9,7 +9,7 @@ import { HeaderRenderer } from "./Rendering/HeaderRenderer.js";
 import { GridConfig } from "./config/GridConfig.js";
 import type { GridModel } from "./models/GridModel.js";
 import { CanvasGrid } from "./CanvasGrid.js";
-import { ResizeManager } from "./managers/ResizeManager.js";
+// import { ResizeManager } from "./managers/ResizeManager/ResizeManager.js";
 import { HistoryManager } from "./managers/HistoryManager.js";
 import { ResizeColumnCommand } from "./commands/ResizeColumnCommand.js";
 import { ResizeRowCommand } from "./commands/ResizeRowCommand.js";
@@ -20,10 +20,13 @@ import { InputController } from "./InputController.js";
 import { FormulaManager } from "./managers/FormulaManager.js";
 import { DataLoader } from "./services/DataLoader.js";
 import { JSONDataLoader } from "./services/JSONDataLoader.js";
+import ColumnResizeManager from "./managers/ResizeManager/ColumnResizeManager.js";
+import RowResizeManager from "./managers/ResizeManager/RowResizeManager.js";
+import { ResizeContext } from "./models/ResizeContext.js";
 
 export class Spreadsheet {
     public readonly grid: GridModel;
-    private readonly canvas: HTMLCanvasElement;
+    public readonly canvas: HTMLCanvasElement;
     private readonly statusBar: HTMLDivElement;
     private readonly ctx: CanvasRenderingContext2D;
 
@@ -31,7 +34,9 @@ export class Spreadsheet {
     public readonly selectionManager: SelectionManager;
     public readonly selectionMetricsManager: SelectionMetricsManager;
     public readonly scrollManager: ScrollManager;
-    public readonly resizeManager: ResizeManager;
+    // public readonly resizeManager: ResizeManager;
+    private readonly colResizeManager: ColumnResizeManager;
+    private readonly rowResizeManager: RowResizeManager;
     public readonly historyManager: HistoryManager;
     private readonly formulaManager: FormulaManager;
 
@@ -49,36 +54,51 @@ export class Spreadsheet {
     public readonly colOffsets: FenwickTree;
     public readonly rowOffsets: FenwickTree;
 
+    public readonly rowHeights:number[];
+    public readonly colWidths:number[];
+
+
     private editingCell: Point | null = null;
 
     constructor(canvas: HTMLCanvasElement, editor: HTMLInputElement, statusBar: HTMLDivElement) {
         this.canvas = canvas;
         this.statusBar = statusBar;
         this.ctx = canvas.getContext("2d")!;
-
-        this.cellManager = new CellManager();
-        this.selectionManager = new SelectionManager();
-        this.InputController = new InputController(this, this.selectionManager);
-        this.scrollManager = new ScrollManager();
-        this.resizeManager = new ResizeManager();
-        this.historyManager = new HistoryManager();
-        this.formulaManager = new FormulaManager(this.cellManager);
-        this.selectionMetricsManager = new SelectionMetricsManager(this.selectionManager, this.cellManager);
-
+        
         this.colOffsets = new FenwickTree(GridConfig.MAX_COLS + 1);
         this.rowOffsets = new FenwickTree(GridConfig.MAX_ROWS + 1);
 
+        this.colWidths = [];
+        this.rowHeights = [];
+
+        this.initializeGeometry();
+
+        const context: ResizeContext = { rowOffsets: this.rowOffsets,  colOffsets: this.colOffsets, heights: this.rowHeights, widths: this.colWidths, canvas: this.canvas };
+        
+
+
+        this.cellManager = new CellManager();
+        this.scrollManager = new ScrollManager();
+        // this.resizeManager = new ResizeManager(this.scrollManager, this.colOffsets, this.rowOffsets, colWidths,rowHeights);
+        
+        this.historyManager = new HistoryManager();
+        this.selectionManager = new SelectionManager(canvas, this.colOffsets, this.rowOffsets, this.scrollManager);
+        this.colResizeManager = new ColumnResizeManager(context, this.historyManager, this.scrollManager);
+        this.rowResizeManager = new RowResizeManager(context, this.historyManager, this.scrollManager);
+        this.InputController = new InputController(this, this.selectionManager, this.colResizeManager, this.rowResizeManager);
+        this.formulaManager = new FormulaManager(this.cellManager);
+        this.selectionMetricsManager = new SelectionMetricsManager(this.selectionManager, this.cellManager);
+        
         this.dataLoader = new JSONDataLoader(this.formulaManager);
 
-        const { colWidths, rowHeights } = this.initializeGeometry();
 
         this.grid = new CanvasGrid(this.ctx, this.cellManager, this.selectionManager, {
             startRow: 0,
             endRow: GridConfig.MAX_ROWS,
             startCol: 0,
             endCol: GridConfig.MAX_COLS,
-            rowHeights: rowHeights,
-            colWidths: colWidths,
+            rowHeights: this.rowHeights,
+            colWidths: this.colWidths,
             headerWidth: GridConfig.HEADER_WIDTH || 50,
             headerHeight: GridConfig.HEADER_HEIGHT || 25
         });
@@ -102,23 +122,19 @@ export class Spreadsheet {
         this.draw();
     }
 
-    private initializeGeometry(): { colWidths: number[], rowHeights: number[] } {
-        const colWidths: number[] = [];
-        const rowHeights: number[] = [];
+    private initializeGeometry(): void {
 
         for (let c = 0; c < GridConfig.MAX_COLS; c++) {
             const width = GridConfig.CELL_WIDTH || 100;
-            colWidths.push(width);
+            this.colWidths.push(width);
             this.colOffsets.add(c + 1, width);
         }
 
         for (let r = 0; r < GridConfig.MAX_ROWS; r++) {
             const height = GridConfig.CELL_HEIGHT || 25;
-            rowHeights.push(height);
+            this.rowHeights.push(height);
             this.rowOffsets.add(r + 1, height);
         }
-
-        return { colWidths, rowHeights };
     }
 
     public resizeCanvas(): void {
@@ -140,24 +156,7 @@ export class Spreadsheet {
     }
 
 
-    public screenToGridCoords(screenX: number, screenY: number): Point | null {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = screenX - rect.left - this.grid.headerWidth + this.scrollManager.scrollX;
-        const y = screenY - rect.top - this.grid.headerHeight + this.scrollManager.scrollY;
-
-        let row = -1, col = -1;
-
-        if (screenX - rect.left < this.grid.headerWidth) col = -1;
-        else col = this.colOffsets.lowerBound(x);
-        if(screenY - rect.top < this.grid.headerHeight) row = -1;
-        else row = this.rowOffsets.lowerBound(y);
-
-        if (col >= GridConfig.MAX_COLS || row >= GridConfig.MAX_ROWS) {
-            return null;
-        }
-
-        return { col: col, row: row };
-    }
+    
 
     public startEditingAtCell(coords: Point): void {
         this.editingCell = coords;
@@ -221,21 +220,21 @@ export class Spreadsheet {
         this.draw();
     }
 
-    public commitResizeHistory(type: 'col' | 'row', index: number, startSize: number): void {
-        if (type === 'col') {
-            const finalWidth = this.grid.colWidths[index]!;
-            if (finalWidth !== startSize) {
-                const command = new ResizeColumnCommand(this.resizeManager, index, finalWidth, startSize, this.grid.colWidths, this.colOffsets);
-                this.historyManager.executeCommand(command);
-            }
-        } else {
-            const finalHeight = this.grid.rowHeights[index]!;
-            if (finalHeight !== startSize) {
-                const command = new ResizeRowCommand(this.resizeManager, index, finalHeight, startSize, this.grid.rowHeights, this.rowOffsets);
-                this.historyManager.executeCommand(command);
-            }
-        }
-    }
+    // public commitResizeHistory(index: number, startSize: number): void {
+    //     if (type === 'col') {
+    //         const finalWidth = this.grid.colWidths[index]!;
+    //         if (finalWidth !== startSize) {
+    //             const command = new ResizeColumnCommand(this.colResizeManager, index, finalWidth, startSize, this.grid.colWidths, this.colOffsets);
+    //             this.historyManager.executeCommand(command);
+    //         }
+    //     } else {
+    //         const finalHeight = this.grid.rowHeights[index]!;
+    //         if (finalHeight !== startSize) {
+    //             const command = new ResizeRowCommand(this.rowResizeManager, index, finalHeight, startSize, this.grid.rowHeights, this.rowOffsets);
+    //             this.historyManager.executeCommand(command);
+    //         }
+    //     }
+    // }
 
 
     public draw(): void {

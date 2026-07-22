@@ -1,6 +1,5 @@
 import { GridConfig } from "../../config/GridConfig.js";
-import { SelectionRange } from "../../models/SelectionRange.js";
-import { SelectionType } from "../../models/SelectionType.js";
+import { screenToGridCoords } from "../../helpers/screenToGridCoords.js";
 import SelectionManager from "./SelectionManager.js";
 
 export default class SubGridSelectionManager {
@@ -13,10 +12,25 @@ export default class SubGridSelectionManager {
         return y > GridConfig.HEADER_HEIGHT && x > GridConfig.HEADER_WIDTH;
     }
 
-    public handle(colIndex:number, rowIndex:number) {
-        if (colIndex >= 0 && colIndex < GridConfig.MAX_COLS && rowIndex >= 0 && rowIndex < GridConfig.MAX_ROWS) {
-            this.selectionManager.startSelection(colIndex, rowIndex);
+    public handleMouseDown(e: MouseEvent) {
+        const coords = screenToGridCoords(e.clientX, e.clientY, this.selectionManager.canvas, this.selectionManager.colOffsets, this.selectionManager.rowOffsets, this.selectionManager.scrollManager);
+        if (!coords) return;
+        this.selectionManager.isMouseDown = true;
+
+        if (coords.col >= 0 && coords.col < GridConfig.MAX_COLS && coords.row >= 0 && coords.row < GridConfig.MAX_ROWS) {
+            this.selectionManager.startSelection(coords.col, coords.row);
         }
         return;
+    }
+
+    public handleMouseMove(e: MouseEvent) {
+        const coords = screenToGridCoords(e.clientX, e.clientY, this.selectionManager.canvas, this.selectionManager.colOffsets, this.selectionManager.rowOffsets, this.selectionManager.scrollManager);
+        if (coords && this.selectionManager.isMouseDown) {
+            this.selectionManager.updateSelection(coords.col, coords.row);
+        }
+    }
+
+    public handleMouseUp() {
+        this.selectionManager.isMouseDown = false;
     }
 }

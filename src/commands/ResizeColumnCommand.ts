@@ -1,38 +1,35 @@
 import type Command from "./Command.ts";
-import type { ResizeManager } from "../managers/ResizeManager.js";
-import type FenwickTree from "../DataStructures/FenwickTree.ts";
- 
+import ColumnResizeManager from "../managers/ResizeManager/ColumnResizeManager.js";
+import FenwickTree from "../DataStructures/FenwickTree.js";
+
 export class ResizeColumnCommand implements Command {
   constructor(
-    private resizeManager: ResizeManager,
     private columnIndex: number,
     private newWidth: number,
     private oldWidth: number,
     private colWidths: number[],
     private colOffsets: FenwickTree
-  ) {}
- 
+  ) { }
+
   public execute(): void {
-    const deltaX = this.newWidth - this.oldWidth;
-    
-    this.resizeManager.resizeColumn(
-      this.columnIndex,
-      deltaX,
-      this.oldWidth,
-      this.colWidths,
-      this.colOffsets
-    );
-  }
- 
-  public undo(): void {
     const deltaX = this.oldWidth - this.newWidth;
-    
-    this.resizeManager.resizeColumn(
-      this.columnIndex,
-      deltaX,
-      this.newWidth,
-      this.colWidths,
-      this.colOffsets
-    );
+    const newColWidth = Math.max(30, this.oldWidth + deltaX);
+    const currentWidth = this.colWidths[this.columnIndex] ?? 0;
+    const change: number = newColWidth - currentWidth;
+
+    this.colOffsets.add(this.columnIndex + 1, change);
+    this.colWidths[this.columnIndex] = newColWidth;
+  }
+
+  public undo(): void {
+    const deltaX = this.newWidth - this.oldWidth;
+    const newColWidth = Math.max(30, this.newWidth + deltaX);
+    const currentWidth = this.colWidths[this.columnIndex] ?? 0;
+    const change: number = newColWidth - currentWidth;
+
+    this.colOffsets.add(this.columnIndex + 1, change);
+    this.colWidths[this.columnIndex] = newColWidth;
   }
 }
+
+
