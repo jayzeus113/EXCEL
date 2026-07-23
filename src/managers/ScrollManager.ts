@@ -1,3 +1,4 @@
+import { GridConfig } from "../config/GridConfig.js";
 import FenwickTree from "../DataStructures/FenwickTree.js";
 import { GridModel } from "../models/GridModel.js";
 
@@ -68,7 +69,8 @@ export class ScrollManager {
     col: number,
     colOffsets: FenwickTree,
     rowOffsets: FenwickTree,
-    grid: GridModel
+    grid: GridModel,
+    isSelectionMetricActive: boolean
   ): void {
     const cellLeft = colOffsets.prefixSum(col) as number;
     const cellTop = rowOffsets.prefixSum(row) as number;
@@ -76,8 +78,10 @@ export class ScrollManager {
     const cellWidth = grid.colWidths[col] ?? 0;
     const cellHeight = grid.rowHeights[row] ?? 0;
 
+
     const cellRight = cellLeft + cellWidth;
     const cellBottom = cellTop + cellHeight;
+
 
     let targetX = this._scrollX;
     let targetY = this._scrollY;
@@ -88,10 +92,12 @@ export class ScrollManager {
       targetX = cellRight - this.viewportWidth;
     }
 
-    if (cellTop < this._scrollY) {
+    const selectionMetricOffset = (isSelectionMetricActive ? GridConfig.SELECTION_METRIC_CONTAINER_HEIGHT : 0);
+
+    if (cellTop < this._scrollY ) {
       targetY = cellTop;
-    } else if (cellBottom > this._scrollY + this.viewportHeight) {
-      targetY = cellBottom - this.viewportHeight;
+    } else if (cellBottom > this._scrollY + this.viewportHeight - selectionMetricOffset) {
+      targetY = cellBottom - this.viewportHeight + selectionMetricOffset;
     }
 
     this.setScroll(targetX, targetY, grid);

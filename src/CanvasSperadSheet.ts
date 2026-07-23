@@ -9,7 +9,6 @@ import { HeaderRenderer } from "./Rendering/HeaderRenderer.js";
 import { GridConfig } from "./config/GridConfig.js";
 import type { GridModel } from "./models/GridModel.js";
 import { CanvasGrid } from "./CanvasGrid.js";
-// import { ResizeManager } from "./managers/ResizeManager/ResizeManager.js";
 import { HistoryManager } from "./managers/HistoryManager.js";
 import { ResizeColumnCommand } from "./commands/ResizeColumnCommand.js";
 import { ResizeRowCommand } from "./commands/ResizeRowCommand.js";
@@ -34,11 +33,10 @@ export class Spreadsheet {
     public readonly selectionManager: SelectionManager;
     public readonly selectionMetricsManager: SelectionMetricsManager;
     public readonly scrollManager: ScrollManager;
-    // public readonly resizeManager: ResizeManager;
     private readonly colResizeManager: ColumnResizeManager;
     private readonly rowResizeManager: RowResizeManager;
     public readonly historyManager: HistoryManager;
-    private readonly formulaManager: FormulaManager;
+    public readonly formulaManager: FormulaManager;
 
     private readonly cellRenderer: CellRenderer;
     private readonly headerRenderer: HeaderRenderer;
@@ -79,7 +77,6 @@ export class Spreadsheet {
 
         this.cellManager = new CellManager();
         this.scrollManager = new ScrollManager();
-        // this.resizeManager = new ResizeManager(this.scrollManager, this.colOffsets, this.rowOffsets, colWidths,rowHeights);
         
         this.historyManager = new HistoryManager();
         this.selectionManager = new SelectionManager(canvas, this.colOffsets, this.rowOffsets, this.scrollManager);
@@ -219,23 +216,6 @@ export class Spreadsheet {
         this.editingCell = null;
         this.draw();
     }
-
-    // public commitResizeHistory(index: number, startSize: number): void {
-    //     if (type === 'col') {
-    //         const finalWidth = this.grid.colWidths[index]!;
-    //         if (finalWidth !== startSize) {
-    //             const command = new ResizeColumnCommand(this.colResizeManager, index, finalWidth, startSize, this.grid.colWidths, this.colOffsets);
-    //             this.historyManager.executeCommand(command);
-    //         }
-    //     } else {
-    //         const finalHeight = this.grid.rowHeights[index]!;
-    //         if (finalHeight !== startSize) {
-    //             const command = new ResizeRowCommand(this.rowResizeManager, index, finalHeight, startSize, this.grid.rowHeights, this.rowOffsets);
-    //             this.historyManager.executeCommand(command);
-    //         }
-    //     }
-    // }
-
 
     public draw(): void {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);

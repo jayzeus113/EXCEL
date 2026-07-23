@@ -23,4 +23,5 @@ export class GridConfig {
     static readonly MIN_CELL_HEIGHT = 20;
     static readonly MAX_CELL_HEIGHT = 300;
     static readonly RESIZE_THRESHOLD = 5;
+    static readonly SELECTION_METRIC_CONTAINER_HEIGHT = 30;
 }

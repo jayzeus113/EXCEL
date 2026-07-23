@@ -81,7 +81,12 @@ export class InputController {
 
     private handleDoubleClick(e: MouseEvent, canvas: HTMLCanvasElement) {
         const activeCell: null | Point = this.app.selectionManager.getActiveCell();
-        if (activeCell) this.app.startEditingAtCell(activeCell);
+        if (activeCell) {
+            this.app.scrollManager.scrollToCell(activeCell.row, activeCell.col, this.app.colOffsets, this.app.rowOffsets, this.app.grid, this.app.selectionMetricsManager.computeSelectionMetrics() != null);
+            this.app.draw();
+            this.app.startEditingAtCell(activeCell);
+        }
+
     }
 
     private handleWheel(e: WheelEvent, canvas: HTMLCanvasElement) {
@@ -108,16 +113,9 @@ export class InputController {
     }
 
 
-
     private handleGlobalKeyDown(e: KeyboardEvent): void {
         const target = e.target as HTMLElement;
-        if (
-            target.tagName === 'INPUT' ||
-            target.tagName === 'TEXTAREA' ||
-            target.isContentEditable
-        ) {
-            return;
-        }
+        if (target.tagName === 'INPUT' || target.isContentEditable) return;
 
         const activeCell = this.app.selectionManager.getActiveCell();
 
@@ -132,6 +130,7 @@ export class InputController {
                 this.app.draw();
             }
         } else if (e.key.length === 1 && activeCell) {
+            this.app.scrollManager.scrollToCell(activeCell.row, activeCell.col, this.app.colOffsets, this.app.rowOffsets, this.app.grid, this.app.selectionMetricsManager.computeSelectionMetrics()!=null);
             this.app.startEditingAtCell(activeCell);
         }
         else if (e.key === 'Enter' && activeCell) {
@@ -166,8 +165,9 @@ export class InputController {
         }
 
         if (handled) {
+            this.app.scrollManager.scrollToCell(activeCell.row, activeCell.col, this.app.colOffsets, this.app.rowOffsets, this.app.grid, this.app.selectionMetricsManager.computeSelectionMetrics()!=null);
             this.app.selectionManager.startSelection(activeCell.col, activeCell.row);
-            this.app.draw();
         }
+        this.app.draw();
     }
 }
