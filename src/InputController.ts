@@ -4,23 +4,15 @@ import { GridConfig } from "./config/GridConfig.js";
 import { getCanvasCoords } from "./helpers/canvasCoords.js";
 import { screenToGridCoords } from "./helpers/screenToGridCoords.js";
 import ColumnResizeManager from "./managers/ResizeManager/ColumnResizeManager.js";
-// import { ResizeManager } from "./managers/ResizeManager/ResizeManager.js";
 import RowResizeManager from "./managers/ResizeManager/RowResizeManager.js";
 import ColumnSelectionManager from "./managers/SelectionManager/ColumnSelectionManager.js";
 import RowSelectionManager from "./managers/SelectionManager/RowSelectionManager.js";
 import SelectionManager from "./managers/SelectionManager/SelectionManager.js";
-// import SelectionManager from "./managers/SelectionManager/SelectionManager.js";
 import SubGridSelectionManager from "./managers/SelectionManager/SubGridSelectionManager.js";
 import { Point } from "./models/Point.js";
 import { ResizeContext } from "./models/ResizeContext.js";
 
 export class InputController {
-    private isMouseDown = false;
-    private isResizing = false;
-    private resizeType: 'col' | 'row' | null = null;
-    private resizeIndex = -1;
-    private resizeStartSize = 0;
-    private resizeStartPos = 0;
     private handlers;
     private activeHandler: ActiveHandler = null;
 
@@ -51,29 +43,11 @@ export class InputController {
         document.addEventListener('keydown', (e: KeyboardEvent) => this.handleGlobalKeyDown(e));
     }
 
-    
+
     private handleMouseDown(e: MouseEvent, canvas: HTMLCanvasElement): void {
         if (e.button !== 0) return;
 
         const { x, y } = getCanvasCoords(e, canvas);
-
-        // const hit = this.app.resizeManager.getResizeHit(
-        //     x, y,
-        //     this.app.scrollManager.scrollX, this.app.scrollManager.scrollY,
-        //     this.app.colOffsets,
-        //     this.app.rowOffsets
-        // );
-
-        // if (hit) {
-        //     this.isResizing = true;
-        //     this.resizeType = hit.type;
-        //     this.resizeIndex = hit.index;
-        //     this.resizeStartPos = hit.type === 'col' ? e.clientX : e.clientY;
-        //     this.resizeStartSize = hit.type === 'col'
-        //         ? this.app.grid.colWidths[hit.index]!
-        //         : this.app.grid.rowHeights[hit.index]!;
-        //     return;
-        // }
 
         const coords = screenToGridCoords(e.clientX, e.clientY, canvas, this.app.colOffsets, this.app.rowOffsets, this.app.scrollManager);
 
@@ -86,75 +60,22 @@ export class InputController {
                 break;
             }
         }
-        this.isMouseDown = true;
         this.app.draw();
     }
 
     private handleMouseMove(e: MouseEvent, canvas: HTMLCanvasElement) {
-    //     const { x, y } = getCanvasCoords(e, canvas);
+        const { x, y } = getCanvasCoords(e, canvas);
+        if (this.activeHandler) {
+            this.activeHandler.handleMouseMove(e);
+            this.app.draw();
+        }
 
-        // if (this.isMouseDown) {
-            // for (const handler of this.handlers) {
-            //     handler.handleMouseMove(e);
-            // }
-        // }
-
-        this.activeHandler?.handleMouseMove(e);
-
-        //     if (this.isResizing) {
-        //         if (this.resizeType === 'col') {
-        //             const deltaX = e.clientX - this.resizeStartPos;
-        //             this.app.resizeManager.resizeColumn(
-        //                 this.resizeIndex,
-        //                 deltaX,
-        //                 this.resizeStartSize,
-        //                 this.app.grid.colWidths,
-        //                 this.app.colOffsets
-        //             );
-        //         } else if (this.resizeType === 'row') {
-        //             const deltaY = e.clientY - this.resizeStartPos;
-        //             this.app.resizeManager.resizeRow(
-        //                 this.resizeIndex,
-        //                 deltaY,
-        //                 this.resizeStartSize,
-        //                 this.app.grid.rowHeights,
-        //                 this.app.rowOffsets
-        //             );
-        //         }
-        //         this.app.draw();
-        //         return;
-        //     }
-
-
-        //     const hit = this.app.resizeManager.getResizeHit(
-        //         x,
-        //         y,
-        // this.app.scrollManager.scrollX,
-        //         this.app.scrollManager.scrollY,
-        //         this.app.colOffsets,
-        //         this.app.rowOffsets
-        //     );
-        // if (hit) {
-        //     canvas.style.cursor = hit.type === 'col' ? 'col-resize' : 'row-resize';
-        // } else {
-        //     canvas.style.cursor = 'default';
-        // }
         this.app.draw();
     }
 
     private handleMouseUp(e: MouseEvent, canvas: HTMLCanvasElement): void {
-        // for(const handler of this.handlers) {
-        //     this.activeHandler = handler;
-        //     this.activeHandler.handleMouseUp();
-        // }
-        // if (this.isResizing) {
-        //     this.app.commitResizeHistory(this.resizeType!, this.resizeIndex, this.resizeStartSize);
-        // }
-        // this.isMouseDown = false;
-        // this.isResizing = false;
-        // this.resizeType = null;
-        // this.resizeIndex = -1;
         this.activeHandler?.handleMouseUp();
+        this.activeHandler = null;
         this.app.draw();
     }
 

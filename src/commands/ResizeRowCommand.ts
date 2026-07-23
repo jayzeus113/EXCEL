@@ -13,14 +13,6 @@ export class ResizeRowCommand implements Command {
   ) { }
 
   execute() {
-    // const deltaY = this.newHeight - this.oldHeight;
-    // const newRowHeight: number = Math.max(15, this.oldHeight + deltaY);
-    // const currentHeight = this.rowHeights[this.rowIndex] ?? 0;
-    // const change: number = newRowHeight - currentHeight;
-
-    // this.rowOffsets.add(this.rowIndex + 1, change);
-    // this.rowHeights[this.rowIndex] = newRowHeight;
-
     const targetedHeight = Math.max(15, this.newHeight); 
     const currentHeight = this.rowHeights[this.rowIndex] ?? 0; 
     const change = targetedHeight - currentHeight; 
@@ -30,13 +22,6 @@ export class ResizeRowCommand implements Command {
   }
 
   undo() {
-    // const deltaY = this.oldHeight - this.newHeight;
-    // const newRowHeight: number = Math.max(15, this.oldHeight + deltaY);
-    // const currentHeight = this.rowHeights[this.rowIndex] ?? 0;
-    // const change: number = newRowHeight - currentHeight;
-
-    // this.rowOffsets.add(this.rowIndex + 1, change);
-    // this.rowHeights[this.rowIndex] = newRowHeight;
     const currentHeight = this.rowHeights[this.rowIndex] ?? 0; 
     const change = this.oldHeight - currentHeight; 
 

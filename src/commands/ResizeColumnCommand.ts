@@ -12,23 +12,20 @@ export class ResizeColumnCommand implements Command {
   ) { }
 
   public execute(): void {
-    const deltaX = this.oldWidth - this.newWidth;
-    const newColWidth = Math.max(30, this.oldWidth + deltaX);
+    const targetedWidth = Math.max(30, this.newWidth);
     const currentWidth = this.colWidths[this.columnIndex] ?? 0;
-    const change: number = newColWidth - currentWidth;
+    const change = targetedWidth - currentWidth;
 
     this.colOffsets.add(this.columnIndex + 1, change);
-    this.colWidths[this.columnIndex] = newColWidth;
+    this.colWidths[this.columnIndex] = targetedWidth;
   }
 
   public undo(): void {
-    const deltaX = this.newWidth - this.oldWidth;
-    const newColWidth = Math.max(30, this.newWidth + deltaX);
     const currentWidth = this.colWidths[this.columnIndex] ?? 0;
-    const change: number = newColWidth - currentWidth;
+    const change: number = this.oldWidth - currentWidth;
 
     this.colOffsets.add(this.columnIndex + 1, change);
-    this.colWidths[this.columnIndex] = newColWidth;
+    this.colWidths[this.columnIndex] = this.oldWidth;
   }
 }
 
